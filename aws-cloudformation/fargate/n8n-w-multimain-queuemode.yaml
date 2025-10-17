@@ -108,7 +108,7 @@ Parameters:
   N8nLicenseKey:
     Type: String
     Description: "Enter your n8n enterprise license key."
-    Default: ENTER-YOUR-LICENSE-KEY-HERE 
+    Default: 12345678-0987-1234-5678-123456789012
     AllowedPattern: '^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$'
              
   N8nTenantId:
