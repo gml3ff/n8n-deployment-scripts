@@ -1157,7 +1157,7 @@ Resources:
       ResourceId: !Sub 
         - "service/${ClusterName}/${ServiceName}"
         - { ClusterName: !Ref ECSCluster, ServiceName: !GetAtt ECSWorkerService.Name }
-      MinCapacity: 1
+      MinCapacity: 2
       MaxCapacity: 10
       RoleARN: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
 
