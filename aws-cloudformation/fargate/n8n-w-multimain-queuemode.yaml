@@ -48,10 +48,6 @@ Parameters:
   
 
 # postgres parameters
-  AllowedCidr:
-    Type: String
-    Default: 10.0.0.0/16
-    Description: CIDR allowed to connect to the DB on port 5432 (use a tight CIDR or /32)
   DBInstanceClass:
     Type: String
     Description: "Select instance class for n8n's PostgresDB"
@@ -145,7 +141,6 @@ Metadata:
           - DBInstanceClass
           - MasterUsername
           - MasterUserPassword
-          - AllowedCidr
           - DBAllocatedStorage
           - DBName
       - Label: 
@@ -385,9 +380,16 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
+
+  # separate egress rules to prevent circular reference 
+  ALBTaskEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref ALBSecGroup
+      IpProtocol: tcp
+      FromPort: 5678
+      ToPort: 5678
+      DestinationSecurityGroupId: !Ref TaskSecGroupMain
     
   # Load balancer for reaching mains
   ElasticLoadBalancingV2LoadBalancer:
@@ -569,16 +571,27 @@ Resources:
       GroupName: !Sub "${AWS::StackName}-rds-sg"
       GroupDescription: Allow PostgreSQL access to RDS on 5432
       VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-          SourceSecurityGroupId: !Ref TaskSecGroupMain
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-          SourceSecurityGroupId: !Ref TaskSecGroupWorker
+  
+  # separate security group ingresses for workers and mains to prevent circular reference
+  RDSSecGroupIngressMain:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref RDSSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref TaskSecGroupMain
+  
+  RDSSecGroupIngressWorker:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref RDSSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref TaskSecGroupWorker
 
+  # subnet group for RDS
   RDSSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -646,15 +659,25 @@ Resources:
     Properties:
       GroupDescription: Allow Redis (TCP 6379) from the app SG
       VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 6379
-          ToPort: 6379
-          SourceSecurityGroupId: !Ref TaskSecGroupMain
-        - IpProtocol: tcp
-          FromPort: 6379
-          ToPort: 6379
-          SourceSecurityGroupId: !Ref TaskSecGroupWorker
+
+  # separate security group ingresses for workers and mains
+  CacheSecGroupIngressMain:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref CacheSecurityGroup
+      IpProtocol: tcp
+      FromPort: 6379
+      ToPort: 6379
+      SourceSecurityGroupId: !Ref TaskSecGroupMain
+
+  CacheSecGroupIngressWorker:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref CacheSecurityGroup
+      IpProtocol: tcp
+      FromPort: 6379
+      ToPort: 6379
+      SourceSecurityGroupId: !Ref TaskSecGroupWorker
 
   # create parameter group for elasticache
   RedisParamGroup:
@@ -725,7 +748,20 @@ Resources:
           ToPort: 5678
           SourceSecurityGroupId: !Ref ALBSecGroup
       SecurityGroupEgress:
-        - IpProtocol: -1
+        # postgres
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          DestinationSecurityGroupId: !Ref RDSSecurityGroup
+        # redis
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          DestinationSecurityGroupId: !Ref CacheSecurityGroup
+        # for fetching certs
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
 
 # security group for n8n worker tasks
@@ -735,7 +771,20 @@ Resources:
       VpcId: !Ref VPC
       GroupDescription: "Do not allow ALB to reach workers"
       SecurityGroupEgress:
-        - IpProtocol: -1
+        # postgres
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          DestinationSecurityGroupId: !Ref RDSSecurityGroup
+        # redis
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          DestinationSecurityGroupId: !Ref CacheSecurityGroup
+        # for rds cert fetching
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
 
   # create log group for n8n in cloudwatch logs
