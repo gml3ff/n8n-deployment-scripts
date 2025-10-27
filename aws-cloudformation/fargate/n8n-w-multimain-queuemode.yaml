@@ -290,54 +290,84 @@ Resources:
       SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref PublicRouteTable
   
-  # Public NAT gateway
-  NatEip:
+  # Public NAT gateways, one per public subnet/AZ
+  NatEipAz1:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
 
-  NatGateway:
+  NatGatewayAz1:
     Type: AWS::EC2::NatGateway
     Properties:
-      AllocationId: !GetAtt NatEip.AllocationId
+      AllocationId: !GetAtt NatEipAz1.AllocationId
       SubnetId: !Ref PublicSubnet1
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-nat-1"
-
-  PrivateDefaultRouteViaNat:
-    Type: AWS::EC2::Route
+          Value: !Sub "${AWS::StackName}-nat-az1"
+  
+  NatEipAz2:
+    Type: AWS::EC2::EIP
     Properties:
-      RouteTableId: !Ref PrivateRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
+      Domain: vpc
 
-  # Single private route table (no default route to Internet)
-  PrivateRouteTable:
+  NatGatewayAz2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEipAz2.AllocationId
+      SubnetId: !Ref PublicSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-nat-az2"
+
+  # private route tables configured per AZ
+
+  PrivateRouteTableAz1:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-private-rt"
+          Value: !Sub "${AWS::StackName}-private-rt-az1"
+
+  PrivateDefaultRouteViaNatAz1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableAz1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayAz1
+
+  PrivateRouteTableAz2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-private-rt-az2"
+
+  PrivateDefaultRouteViaNatAz2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableAz2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayAz2
 
   PrivateSubnet1Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PrivateSubnet1
-      RouteTableId: !Ref PrivateRouteTable
+      RouteTableId: !Ref PrivateRouteTableAz1
 
   PrivateSubnet2Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PrivateSubnet2
-      RouteTableId: !Ref PrivateRouteTable
+      RouteTableId: !Ref PrivateRouteTableAz2
 
   PrivateSubnet3Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PrivateSubnet3
-      RouteTableId: !Ref PrivateRouteTable
+      RouteTableId: !Ref PrivateRouteTableAz1
   
   # Security group for 443, 80, 5678 access over HTTPS
   ALBSecGroup:
@@ -508,9 +538,7 @@ Resources:
             Principal:
               AWS: !GetAtt N8nTaskRole.Arn
             Action:
-              - "s3:PutObject"
-              - "s3:GetObject"
-              - "s3:DeleteObject"
+              - "s3:GetBucketLocation"
               - "s3:ListBucket"
             Resource: !Sub "arn:aws:s3:::${S3BinaryBucket}"
           - Sid: AllowS3UserFullAccessToObjects
@@ -521,8 +549,18 @@ Resources:
               - "s3:PutObject"
               - "s3:GetObject"
               - "s3:DeleteObject"
-              - "s3:ListBucket"
             Resource: !Sub "arn:aws:s3:::${S3BinaryBucket}/*"
+
+  # add vpc gateway endpoint for s3
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      RouteTableIds:
+        - !Ref PrivateRouteTableAz1
+        - !Ref PrivateRouteTableAz2
+      VpcEndpointType: Gateway
 
   # security groups and subnet group for postgres
   RDSSecurityGroup:
@@ -731,16 +769,22 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Sid: BucketAndObjectAccess
+              - Sid: BucketAccess
+                Effect: Allow
+                Action:
+                  - "s3:GetBucketLocation"
+                  - "s3:ListBucket"
+                Resource:
+                  - !Sub "arn:aws:s3:::${S3BinaryBucket}"
+              - Sid: ObjectAccess
                 Effect: Allow
                 Action:
                   - "s3:PutObject"
                   - "s3:GetObject"
                   - "s3:DeleteObject"
-                  - "s3:ListBucket"
                 Resource:
-                  - !Sub "arn:aws:s3:::${S3BinaryBucket}"
                   - !Sub "arn:aws:s3:::${S3BinaryBucket}/*"
+
 
   # ECS Task Execution Role
   N8nTaskExecutionRole:
