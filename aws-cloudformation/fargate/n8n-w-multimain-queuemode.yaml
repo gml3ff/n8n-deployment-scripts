@@ -508,13 +508,20 @@ Resources:
             Principal:
               AWS: !GetAtt N8nTaskRole.Arn
             Action:
-              - "s3:*"
+              - "s3:PutObject"
+              - "s3:GetObejct"
+              - "s3:DeleteObject"
+              - "s3:ListBucket"
             Resource: !Sub "arn:aws:s3:::${S3BinaryBucket}"
           - Sid: AllowS3UserFullAccessToObjects
             Effect: Allow
             Principal:
               AWS: !GetAtt N8nTaskRole.Arn
-            Action: "s3:*"
+            Action:
+              - "s3:PutObject"
+              - "s3:GetObejct"
+              - "s3:DeleteObject"
+              - "s3:ListBucket"
             Resource: !Sub "arn:aws:s3:::${S3BinaryBucket}/*"
 
   # security groups and subnet group for postgres
@@ -726,7 +733,11 @@ Resources:
             Statement:
               - Sid: BucketAndObjectAccess
                 Effect: Allow
-                Action: "s3:*"
+                Action:
+                  - "s3:PutObject"
+                  - "s3:GetObejct"
+                  - "s3:DeleteObject"
+                  - "s3:ListBucket"
                 Resource:
                   - !Sub "arn:aws:s3:::${S3BinaryBucket}"
                   - !Sub "arn:aws:s3:::${S3BinaryBucket}/*"
