@@ -509,7 +509,7 @@ Resources:
               AWS: !GetAtt N8nTaskRole.Arn
             Action:
               - "s3:PutObject"
-              - "s3:GetObejct"
+              - "s3:GetObject"
               - "s3:DeleteObject"
               - "s3:ListBucket"
             Resource: !Sub "arn:aws:s3:::${S3BinaryBucket}"
@@ -519,7 +519,7 @@ Resources:
               AWS: !GetAtt N8nTaskRole.Arn
             Action:
               - "s3:PutObject"
-              - "s3:GetObejct"
+              - "s3:GetObject"
               - "s3:DeleteObject"
               - "s3:ListBucket"
             Resource: !Sub "arn:aws:s3:::${S3BinaryBucket}/*"
@@ -735,7 +735,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - "s3:PutObject"
-                  - "s3:GetObejct"
+                  - "s3:GetObject"
                   - "s3:DeleteObject"
                   - "s3:ListBucket"
                 Resource:
