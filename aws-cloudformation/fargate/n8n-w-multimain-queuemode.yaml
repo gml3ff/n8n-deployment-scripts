@@ -615,7 +615,7 @@ Resources:
       PubliclyAccessible: false
       MultiAZ: false
       AutoMinorVersionUpgrade: true
-      BackupRetentionPeriod: 1
+      BackupRetentionPeriod: 15
       Port: 5432
       MasterUsername: !Ref MasterUsername
       MasterUserPassword: !Ref MasterUserPassword
