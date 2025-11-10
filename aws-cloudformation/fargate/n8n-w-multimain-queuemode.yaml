@@ -613,7 +613,7 @@ Resources:
       StorageType: gp3
       StorageEncrypted: true
       PubliclyAccessible: false
-      MultiAZ: false
+      MultiAZ: true
       AutoMinorVersionUpgrade: true
       BackupRetentionPeriod: 15
       Port: 5432
