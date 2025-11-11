@@ -73,7 +73,7 @@ Parameters:
     Type: String
     NoEcho: true
     Default: Password123!
-    Description: Master (admin) password. Please change this from the default for optimal security. 
+    Description: Master (admin) password. IMPORTANT NOTE: Please change this from the default for optimal security. 
     MinLength: 8
   DBName:
     Type: String
@@ -96,7 +96,7 @@ Parameters:
   RedisPassword:
     Type: String
     NoEcho: true
-    Description: Password for the Redis user "default". Must be 16 characters at least. Please change this from the default for optimal security.
+    Description: Password for the Redis user "default". Must be 16 characters at least. IMPORTANT NOTE: Please change this from the default for optimal security.
     AllowedPattern: ".{16}.*"
     Default: "Myverysecureredispassword1!"
 
@@ -613,9 +613,9 @@ Resources:
       StorageType: gp3
       StorageEncrypted: true
       PubliclyAccessible: false
-      MultiAZ: false
+      MultiAZ: true
       AutoMinorVersionUpgrade: true
-      BackupRetentionPeriod: 1
+      BackupRetentionPeriod: 15
       Port: 5432
       MasterUsername: !Ref MasterUsername
       MasterUserPassword: !Ref MasterUserPassword
